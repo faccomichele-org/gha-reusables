@@ -28,6 +28,10 @@ on:
         description: 'A switch that set when pushing the built image to ECR or not'
         type: boolean
         default: true
+      architectures:
+        description: 'A list of architectures for the Docker images (e.g., "[\"amd64\", \"arm64\"]")'
+        type: string
+        default: "['amd64']"
 
 permissions:
   id-token: write
@@ -234,7 +238,7 @@ jobs:
 
   build_and_push:
     name: Build ${{ matrix.dockerfile.folder }} (${{ inputs.environment-prefix != '' && format('{0}-{1}', inputs.environment-prefix, inputs.environment) || inputs.environment }}_${{ inputs.region }})
-    runs-on: ${{ vars.RUNNERS_AMD64 || 'ubuntu-latest' }}
+    runs-on: ${{ matrix.architecture == 'arm64' && (vars.RUNNERS_ARM64 || 'ubuntu-24.04-arm') || (vars.RUNNERS_AMD64 || 'ubuntu-latest') }}
     environment: ${{ inputs.environment-prefix != '' && format('{0}-{1}', inputs.environment-prefix, inputs.environment) || inputs.environment }}
     needs: [detect_dockerfiles, repo_details]
     if: needs.detect_dockerfiles.outputs.has_dockerfiles == 'true'
@@ -242,6 +246,7 @@ jobs:
       fail-fast: false
       matrix:
         dockerfile: ${{ fromJson(needs.detect_dockerfiles.outputs.matrix) }}
+        architecture: ${{ fromJson(inputs.architectures) }}
     env:
       REPO_NAME: ${{ needs.repo_details.outputs.repo-name }}
       REPO_URL: ${{ needs.repo_details.outputs.repo-url }}
